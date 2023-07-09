@@ -81,7 +81,7 @@ async def private_message_handler(update, context):
         await bot.send_message(chat_id=chat_id, text=otp)
     elif "pay " in text:
         details_pay = text.split(" ")
-        await functions.binance_pay(details_pay[0], details_pay[1], details_pay[3], chat_id)
+        await functions.binance_pay(details_pay[1], details_pay[2], details_pay[3], chat_id)
     elif "pay now " in text:
         text = text.replace("pay now ", "")
         if float(text) < 50:
