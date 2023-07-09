@@ -14,7 +14,7 @@ async def spreadsheet(chat_id, task_id=None, date=None):
     wb = openpyxl.Workbook()
     ws = wb.active
     # Write the headers
-    task_details = tasks_col.find_one({"task_id": int(task_id)})
+    task_details = tasks_col.find_one({"task_id": task_id})
     if task_details is None:
         await bot.send_message(chat_id=chat_id, text="Task id not valid!")
         return 0
