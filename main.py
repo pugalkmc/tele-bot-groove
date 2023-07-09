@@ -160,7 +160,7 @@ async def group_message_handler(update, context):
     collection_name = time_fun.now().strftime("%d-%m-%Y")
     message_date_ist = time_fun.now().strftime("%H:%M:%S")
     task = tasks_col.find_one({"group_id": group_id})
-    if len(task) <= 0 or task['status'] == 'paused':
+    if task is None or task['status'] == 'paused':
         return
     if task['task_type'] == 'filter':
         if "twitter.com" not in text or len(text) < 15:
