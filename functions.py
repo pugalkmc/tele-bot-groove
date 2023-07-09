@@ -19,7 +19,7 @@ db = mongo_client["groovedb"]
 peoples_col = db["peoples"]
 tasks_col = db["tasks"]
 
-BOT_TOKEN = "5638732799:AAGpMbyygfvsCf9Jmhu7jxdnMEFrkxtZAdI"
+BOT_TOKEN = "5638732799:AAFNmRh2tRX4O2ERgMnRFSJR8Dmfu06NrWw"
 bot = Bot(token=BOT_TOKEN)
 
 
