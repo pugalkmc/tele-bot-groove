@@ -141,8 +141,3 @@ def process_json_file():
                     # bot.send_message(chat_id=,
                     #                  text=f"{text} is not a valid Binance ID\nRe-try")
             # peoples_col.insert_one(item)
-# 
-
-# Example usage
-# file_path = "path_to_your_json_file.json"
-process_json_file()
