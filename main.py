@@ -1,5 +1,5 @@
 import os
-
+import re
 import openpyxl
 from telegram.ext import CommandHandler, MessageHandler, filters, Application
 from edit_task import *
@@ -18,16 +18,6 @@ def get_ip_address():
 client = Client(api_key, api_secret)
 
 
-async def binance_pay(update, context, amount):
-    chat_id = update.message.chat_id
-    response = client.withdraw(
-        coin='TUSD',
-        address='0x6B518FD3dF2d4B97BAfE551460dee5A7852df0d6',
-        amount=amount,
-        network='BSC')
-    await bot.send_message(chat_id=chat_id, text=response)
-
-
 async def start(update, context):
     message = update.message
     chat_id = message.chat_id
@@ -41,7 +31,7 @@ async def start(update, context):
         await bot.send_message(chat_id=chat_id, text=f"Hello @{username}\n"
                                                      f"Please set your telegram username in settings!\n"
                                                      f"Check out this document for guidance: Not set")
-    elif find_people is None or len(find_people) == 0:
+    elif find_people is None:
         peoples_col.insert_one({"chat_id": chat_id, "username": username, "first_started": current_time})
         await bot.send_message(chat_id=chat_id, text=f"Hello! welcome @{username}")
     else:
@@ -79,8 +69,6 @@ async def private_message_handler(update, context):
     elif "pay " in text:
         details_pay = text.split(" ")
         await functions.binance_pay(details_pay[1], details_pay[2], details_pay[3], chat_id)
-    elif "check" == text:
-        process_json_file()
 
     elif "my task" == text:
         text = ""
@@ -147,24 +135,26 @@ async def group_message_handler(update, context):
     message = update.message
     text = message.text
     username = message.from_user.username
+    user_id = message.from_user.id
     message_id = message.message_id
     group_id = message.chat.id
 
     collection_name = time_fun.now().strftime("%d-%m-%Y")
     message_date_ist = time_fun.now().strftime("%H:%M:%S")
     task = tasks_col.find_one({"group_id": group_id})
-    if len(task) <= 0 or task['status'] == 'paused':
+    if not task or task['status'] == 'paused':
         return
-    if task['task_type'] == 'filter':
+    elif task['task_type'] == 'filter':
+        # if task['target_reached']:
+        #     return
         if "twitter.com" not in text or len(text) < 15:
             return
         # else:
         #     if "?" in text:
         #         text = text.split("?")[0]
-    if task['task_type'] == 'normal':
+    else:
         if not await verify_membership(update, context):
             return
-
     new_message = {
         'username': username,
         'text': text,
@@ -178,6 +168,19 @@ async def group_message_handler(update, context):
         {"$push": {f'collection.{collection_name}': new_message}}
     )
 
+    if task['task-type'] == 'normal':
+        pipeline = [
+            {"$unwind": f"${collection_name}"},
+            {"$match": {f"{collection_name}.username": username}},
+            {"$group": {"_id": None, "count": {"$sum": 1}}}
+        ]
+        # Execute the aggregation pipeline
+        results = tasks_col.aggregate(pipeline)
+        if next(results)["count"] == 15:
+            await bot.send_message(chat_id=message.from_user.id,
+                                   text=f"Today target reached for {task['group_title']}\n"
+                                        f"Still you can do more, if you like")
+
 
 async def task_status_switch(chat_id, task_id, option):
     if task_id.isnumeric():
@@ -186,9 +189,6 @@ async def task_status_switch(chat_id, task_id, option):
             await bot.send_message(chat_id=chat_id, text="Invalid task ID")
             return
         get = tasks_col.update_one({"task_id": task_id}, {"$set": {"status": option}})
-        # db.reference(f"tasks/{get['group_id']}").update({
-        #     'status': option
-        # })
         await bot.send_message(chat_id=chat_id, text=f"{get['group_id']} : Task {option}!")
         await bot.send_message(chat_id=get['group_id'], text=f"Task {option}")
     else:
@@ -215,14 +215,15 @@ def main():
             TITLE: [MessageHandler(filters.TEXT, title)],
             TASK_TYPE: [MessageHandler(filters.TEXT, task_type)],
             CHAT_ID: [MessageHandler(filters.TEXT, chat_id)],
-            LIMIT: [MessageHandler(filters.TEXT, limit)],
+            USER_TARGET: [MessageHandler(filters.TEXT, user_target)],
+            DAILY_TARGET: [MessageHandler(filters.TEXT, daily_target)],
             MEMBERS_LIST: [MessageHandler(filters.TEXT, members_list)],
             CONFIRM: [MessageHandler(filters.TEXT, confirm)]
         }, fallbacks=[]
     )
 
     twitter_settings = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^twitter$'), twitter_ids)],
+        entry_points=[MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^twitter$', re.IGNORECASE)), twitter_ids)],
         states={
             TWITTER_UPDATE: [MessageHandler(filters.TEXT, twitter_update)],
             TWITTER_UPDATE_LIST: [MessageHandler(filters.TEXT, twitter_update_list)],
@@ -231,15 +232,26 @@ def main():
     )
 
     binance = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^binance$'), binance_start)],
+        entry_points=[
+            MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^binance$', re.IGNORECASE)), binance_start)],
         states={
             BINANCE_OPTIONS: [MessageHandler(filters.TEXT, binance_option)],
             SET_BINANCE: [MessageHandler(filters.TEXT, set_binance)],
         }, fallbacks=[]
     )
 
+    address = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^tusd address$', re.IGNORECASE)), address_start)],
+        states={
+            ADDRESS_OPTIONS: [MessageHandler(filters.TEXT, address_option)],
+            SET_ADDRESS: [MessageHandler(filters.TEXT, set_address)],
+        }, fallbacks=[]
+    )
+
     discord = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^discord$'), discord_start)],
+        entry_points=[
+            MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^discord$', re.IGNORECASE)), discord_start)],
         states={
             DISCORD_OPTIONS: [MessageHandler(filters.TEXT, discord_option)],
             SET_DISCORD: [MessageHandler(filters.TEXT, set_discord)],
@@ -247,7 +259,7 @@ def main():
     )
 
     upi = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^UPI ID$'), upi_start)],
+        entry_points=[MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^upi id$', re.IGNORECASE)), upi_start)],
         states={
             UPI_OPTIONS: [MessageHandler(filters.TEXT, upi_option)],
             SET_UPI: [MessageHandler(filters.TEXT, set_upi)],
@@ -255,7 +267,7 @@ def main():
     )
 
     edit_task_con = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex('^Admin Mode$'), task_id)],
+        entry_points=[MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^admin mode$', re.IGNORECASE)), task_id)],
         states={
             ADMIN_MODE: [MessageHandler(filters.TEXT, admin_mode)],
             MEMBER_START: [MessageHandler(filters.TEXT, member_start)],
@@ -270,11 +282,12 @@ def main():
     dp.add_handler(upi)
     dp.add_handler(create)
     dp.add_handler(binance)
+    dp.add_handler(address)
     dp.add_handler(discord)
     dp.add_handler(twitter_settings)
     dp.add_handler(CommandHandler("cancel", cancel))
-    dp.add_handler(MessageHandler(filters.Regex('^settings$'), settings))
-    dp.add_handler(MessageHandler(filters.Regex('^main menu$'), menu_button))
+    dp.add_handler(MessageHandler(filters.Regex(re.compile(r'^settings$', re.IGNORECASE)), settings))
+    dp.add_handler(MessageHandler(filters.Regex(re.compile(r'^main menu$', re.IGNORECASE)), menu_button))
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(MessageHandler(filters.ChatType.PRIVATE, private_message_handler))
     dp.add_handler(MessageHandler(filters.ChatType.GROUPS, group_message_handler))
