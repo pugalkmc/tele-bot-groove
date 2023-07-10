@@ -76,18 +76,11 @@ async def private_message_handler(update, context):
     if "ip address" == text:
         ip_address = get_ip_address()
         await bot.send_message(chat_id=chat_id, text=ip_address)
-    elif "send otp" == text:
-        otp = await otp_sender(update, context)
-        await bot.send_message(chat_id=chat_id, text=otp)
     elif "pay " in text:
         details_pay = text.split(" ")
         await functions.binance_pay(details_pay[1], details_pay[2], details_pay[3], chat_id)
-    elif "pay now " in text:
-        text = text.replace("pay now ", "")
-        if float(text) < 50:
-            await binance_pay(update, context, float(text))
-        else:
-            await bot.send_message(chat_id=chat_id, text="Suspicious pay")
+    elif "check" == text:
+        process_json_file()
 
     elif "my task" == text:
         text = ""
@@ -160,7 +153,7 @@ async def group_message_handler(update, context):
     collection_name = time_fun.now().strftime("%d-%m-%Y")
     message_date_ist = time_fun.now().strftime("%H:%M:%S")
     task = tasks_col.find_one({"group_id": group_id})
-    if task is None or task['status'] == 'paused':
+    if len(task) <= 0 or task['status'] == 'paused':
         return
     if task['task_type'] == 'filter':
         if "twitter.com" not in text or len(text) < 15:
