@@ -153,6 +153,20 @@ async def set_binance(update, context):
         await settings(update, context)
         return ConversationHandler.END
     if text.isnumeric():
+        try:
+            account_info = client.get_account()
+            if "canTrade" in account_info:
+                bot.send_message(chat_id=update.effective_chat.id, text=f"{text} is a valid Binance ID.")
+            else:
+                bot.send_message(chat_id=update.effective_chat.id,
+                                 text=f"{text} is not a valid Binance ID\nRe-try")
+                return SET_BINANCE
+        except Exception as e:
+            bot.send_message(chat_id=update.effective_chat.id,
+                             text="An error occurred while checking the Binance ID.\n"
+                                  "Report to developer")
+            return SET_BINANCE
+
         peoples_col.update_one({"chat_id": chat_id}, {"$set": {"binance": text}}, upsert=True)
         return await binance_start(update, context)
     else:
