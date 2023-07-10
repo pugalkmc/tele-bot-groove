@@ -7,6 +7,7 @@ from telegram._bot import Bot
 from binance import Client
 
 time_fun = datetime.datetime
+bscscan_api_key = 'ADNU4CKRS8PNSHKZYSF1PQVIYEPYDNIB23'
 
 admin_list = ["pugalkmc", "sarankmc", "groovemark", "Riyanmark799", "Dustin_05"]
 
@@ -19,7 +20,7 @@ db = mongo_client["groovedb"]
 peoples_col = db["peoples"]
 tasks_col = db["tasks"]
 
-BOT_TOKEN = "5638732799:AAFNmRh2tRX4O2ERgMnRFSJR8Dmfu06NrWw"
+BOT_TOKEN = "6109952194:AAHVz5BIJUNamBUVioTSjJA4a9C3qezTeWs"
 bot = Bot(token=BOT_TOKEN)
 
 
@@ -46,7 +47,7 @@ async def settings(update, context):
         return
     chat_id = update.message.chat_id
     text = update.message.text
-    reply_keyboard = [["twitter", "binance", "discord"], ['UPI ID', 'main menu']]
+    reply_keyboard = [["Twitter", "Discord", "Binance"], ["TUSD Address", 'UPI ID', 'main menu']]
     await context.bot.send_message(chat_id=chat_id, text="Choose options",
                                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
                                                                     one_time_keyboard=True),
@@ -55,26 +56,20 @@ async def settings(update, context):
 
 async def distribute_payment(update, context, dict_payment, total_cost):
     chat_id = update.message.chat_id
-    text = update.message.text
     tusd_balance = client.get_asset_balance(asset='TUSD')
     balance = float(tusd_balance['free'])
-    if balance < total_cost:
+    if balance <= total_cost:
         await bot.send_message(chat_id=chat_id, text=f"Available balance on binance: {balance} TUSD\n"
                                                      f"Distribution cancelled")
         return
     for user in dict_payment:
         if 'binance' in user:
-            await binance_pay(user['chat_id'], user['binance'], user['amount'], chat_id)
-            time.sleep(5)
+            await binance_pay(user['chat_id'], user['address'], user['amount'], chat_id)
+            time.sleep(1)
     await bot.send_message(chat_id=chat_id, text="Distribution completed!")
 
 
-async def binance_pay(chat_id, binance_id, amount, dev_id=None):
-    deposit_address = client.get_deposit_address(coin='TUSD', network="BSC", recvWindow=5000, binance_id=binance_id)
-    address = deposit_address['address']
-    await bot.send_message(chat_id=chat_id, text=f"Binance id:{binance_id}\n"
-                                                 f"Address: {address}")
-
+async def binance_pay(chat_id, address, amount, dev_id=None):
     response = client.withdraw(
         coin='TUSD',
         address=address,
@@ -97,47 +92,7 @@ async def binance_pay(chat_id, binance_id, amount, dev_id=None):
 
 
 def check_transaction_confirmation(transaction_hash):
-    bscscan_api_key = 'ADNU4CKRS8PNSHKZYSF1PQVIYEPYDNIB23'
     api_url = f'https://api.bscscan.com/api?module=transaction&action=gettxreceiptstatus&txhash={transaction_hash}&apikey={bscscan_api_key}'
     response = requests.get(api_url)
     transaction_data = response.json()
     return transaction_data['result']['status']
-
-
-async def otp_sender(update, context):
-    return 1234
-    # sender = "c52065dab4368d@sandbox.smtp.mailtrap.io"
-    # receiver = "pugalkmc@gmail.com"
-    #
-    # message = f"""\
-    # Subject: Hi Mailtrap
-    # To: {receiver}
-    # From: {sender}
-    #
-    # This is a test e-mail message."""
-    #
-    # with smtplib.SMTP("sandbox.smtp.mailtrap.io", 2525) as server:
-    #     server.login("c52065dab4368d", "a7c808b3d4498b")
-    #     server.sendmail(sender, receiver, message)
-    #     return 1111
-
-
-import json
-
-
-def process_json_file():
-    with open("peoples.json") as file:
-        data = json.load(file)
-
-        # Iterate over each item in the JSON data
-        for item in data.values():
-            if "binance" in item:
-                account_info = client.get_account()
-                if "canTrade" in account_info:
-                    print(f"{item['binance']} is a valid Binance ID.")
-                else:
-                    print(f"username:{item['username']} "
-                          f"{item['binance']} is not a valid Binance ID")
-                    # bot.send_message(chat_id=,
-                    #                  text=f"{text} is not a valid Binance ID\nRe-try")
-            # peoples_col.insert_one(item)
