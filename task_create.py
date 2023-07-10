@@ -2,7 +2,7 @@ from firebase_admin import db
 from telegram.ext import ConversationHandler
 from functions import *
 
-TITLE, TASK_TYPE, CHAT_ID, LIMIT, MEMBERS_LIST, CONFIRM = range(6)
+TITLE, TASK_TYPE, CHAT_ID, USER_TARGET, DAILY_TARGET, MEMBERS_LIST, CONFIRM = range(7)
 
 
 async def create_task(update, context):
@@ -110,18 +110,16 @@ async def chat_id(update, context):
     context.user_data["group_type"] = group_type
     context.user_data["group_id"] = chat_info['id']
     context.user_data["group_title"] = chat_info.title
-    flexible_text = "limit of links count for each member" if context.user_data[
-                                                                   "task_type"] == "filter" else "message count for " \
-                                                                                                  "each member to do " \
-                                                                                                  "daily"
+    flexible_text = "Now set the daily user tweet target" if context.user_data[
+                                                                 "task_type"] == "filter" else "Now send the daily user message target"
     await bot.send_message(chat_id=chat_id, text=f"Id set to : {text}\n"
                                                  f"Chat type: {group_type}\n"
                                                  f"Now send the {flexible_text}",
                            reply_to_message_id=update.message.message_id)
-    return LIMIT
+    return USER_TARGET
 
 
-async def limit(update, context):
+async def user_target(update, context):
     chat_id = update.message.chat_id
     text = update.message.text
     if text == "cancel":
@@ -130,9 +128,35 @@ async def limit(update, context):
         return ConversationHandler.END
 
     if text.isdigit():
-        context.user_data["limit"] = text
-        flexible_text = f"Telegram message count target set to : {text}" if context.user_data[
-                                                                                "task_type"] == "normal" else f"Twitter tweet target set to {text}"
+        context.user_data["user_target"] = text
+        flexible_text = f"Telegram message daily user target set to : {text}" if context.user_data[
+                                                                                     "task_type"] == "normal" else f"Twitter tweet daily user target set to {text}"
+
+        flexible = "Now set the daily total tweet target" if context.user_data[
+                                                                 "task_type"] == "filter" else "Now send the daily " \
+                                                                                               "message target"
+        await bot.send_message(chat_id=chat_id, text=f"{flexible_text}\n\n"
+                                                     f"{flexible}",
+                               reply_to_message_id=update.message.message_id)
+        return DAILY_TARGET
+    else:
+        await bot.send_message(chat_id=chat_id, text=f"Tweet limit only can be a number, re-try",
+                               reply_to_message_id=update.message.message_id)
+        return USER_TARGET
+
+
+async def daily_target(update, context):
+    chat_id = update.message.chat_id
+    text = update.message.text
+    if text == "cancel":
+        await bot.send_message(chat_id=chat_id, text="Task creation Cancelled")
+        await menu_button(update, context)
+        return ConversationHandler.END
+
+    if text.isdigit():
+        context.user_data["daily_target"] = text
+        flexible_text = f"Telegram message daily target set to : {text}" if context.user_data[
+                                                                                "task_type"] == "normal" else f"Twitter tweet daily target set to {text}"
         await bot.send_message(chat_id=chat_id, text=f"{flexible_text}\n\n"
                                                      f"Now send workers telegram handle with comma separated\n"
                                                      f"NOTE: Don't include @",
@@ -141,7 +165,7 @@ async def limit(update, context):
     else:
         await bot.send_message(chat_id=chat_id, text=f"Tweet limit only can be a number, re-try",
                                reply_to_message_id=update.message.message_id)
-        return LIMIT
+        return DAILY_TARGET
 
 
 async def members_list(update, context):
@@ -155,9 +179,10 @@ async def members_list(update, context):
                            reply_to_message_id=update.message.message_id)
     reply_keyboard = [["confirm", "cancel"]]
     await bot.send_message(chat_id=chat_id, text=f"Title: {context.user_data['title']}\n"
-                                                 f"chat_id: {context.user_data['group_id']}\n"
-                                                 f"task type: {context.user_data['task_type']}\n"
-                                                 f"Limit: {context.user_data['limit']}\n"
+                                                 f"Chat_id: {context.user_data['group_id']}\n"
+                                                 f"Task type: {context.user_data['task_type']}\n"
+                                                 f"User target: {context.user_data['user_target']}\n"
+                                                 f"Daily target: {context.user_data['daily_target']}\n"
                                                  f"Members: {text}",
                            reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
                                                             one_time_keyboard=True),
@@ -178,12 +203,14 @@ async def confirm(update, context):
         group_id = context.user_data["group_id"]
         mem_list = context.user_data["workers"].replace(" ", "").replace('@', '').split(",")
         # ref_id = db.reference('last_task').get() or {}
-        ref_id = db['last_task'].find_one({})
-        get_id = 0 if not ref_id else ref_id["_id"]
+        ref_id = db['last_task'].find_one({"id": "stable"})
+        get_id = 0 if not ref_id else ref_id["task_id"]
         tasks_col.insert_one({
             'group_id': group_id,
             'title': context.user_data['title'],
             'task_id': get_id + 1,
+            'user_target': context.user_data['user_target'],
+            'total_target': context.user_data['total_target'],
             'created_by': username,
             'group_title': context.user_data['group_title'],
             'group_type': context.user_data['group_type'],
@@ -191,7 +218,7 @@ async def confirm(update, context):
             'workers': mem_list,
             'status': 'active'
         })
-        db['last_task'].insert_one({"_id": get_id + 1})
+        db['last_task'].update_one({"_id": 'stable'}, {"$set": {"task_id": get_id + 1}})
 
         await bot.send_message(chat_id=chat_id, text=f"Task created! Task ID : {get_id}")
         await menu_button(update, context)
