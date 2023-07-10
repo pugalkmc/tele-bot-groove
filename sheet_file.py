@@ -1,7 +1,6 @@
 import os
 
 import openpyxl
-from firebase_admin import db
 
 from functions import *
 
@@ -32,7 +31,7 @@ async def spreadsheet(chat_id, task_id=None, date=None):
     ws['C1'] = 'IST Time'
 
     username_counts = {}
-    if collection_name in task_details['collection']:
+    if 'collection' in task_details and collection_name in task_details['collection']:
         row = 2
         for task_info in task_details['collection'][collection_name]:
             if task_info is not None and isinstance(task_info, dict):
