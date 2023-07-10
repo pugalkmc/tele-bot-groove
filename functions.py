@@ -19,7 +19,7 @@ db = mongo_client["groovedb"]
 peoples_col = db["peoples"]
 tasks_col = db["tasks"]
 
-BOT_TOKEN = "5638732799:AAFNmRh2tRX4O2ERgMnRFSJR8Dmfu06NrWw"
+BOT_TOKEN = "5638732799:AAGpMbyygfvsCf9Jmhu7jxdnMEFrkxtZAdI"
 bot = Bot(token=BOT_TOKEN)
 
 
@@ -29,7 +29,6 @@ async def menu_button(update, context):
         return
     chat_id = update.message.chat_id
     username = update.message.from_user.username
-    #reply markup
     reply_keyboard = []
     if username in admin_list:
         reply_keyboard = [["settings", "My task"], ["Admin Mode"]]
@@ -121,3 +120,29 @@ async def otp_sender(update, context):
     #     server.login("c52065dab4368d", "a7c808b3d4498b")
     #     server.sendmail(sender, receiver, message)
     #     return 1111
+
+
+import json
+
+
+def process_json_file():
+    with open("peoples.json") as file:
+        data = json.load(file)
+
+        # Iterate over each item in the JSON data
+        for item in data.values():
+            if "binance" in item:
+                account_info = client.get_account()
+                if "canTrade" in account_info:
+                    print(f"{item['binance']} is a valid Binance ID.")
+                else:
+                    print(f"username:{item['username']} "
+                          f"{item['binance']} is not a valid Binance ID")
+                    # bot.send_message(chat_id=,
+                    #                  text=f"{text} is not a valid Binance ID\nRe-try")
+            # peoples_col.insert_one(item)
+# 
+
+# Example usage
+# file_path = "path_to_your_json_file.json"
+process_json_file()
