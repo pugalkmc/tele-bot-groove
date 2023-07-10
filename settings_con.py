@@ -174,6 +174,87 @@ async def set_binance(update, context):
         return SET_BINANCE
 
 
+ADDRESS_OPTIONS, SET_ADDRESS = range(2)
+
+
+async def address_start(update, context):
+    message = update.message
+    if message.chat.type == 'group' or message.chat.type == 'supergroup':
+        return ConversationHandler.END
+    chat_id = message.chat_id
+    username = message.from_user.username
+    text = message.text.lower()
+    get_data = peoples_col.find_one({"chat_id": chat_id})
+    if get_data and 'address' in get_data:
+        reply_keyboard = [["change address", "settings"]]
+        await bot.send_message(chat_id=chat_id, text=f"Your TUSD address : {get_data['address']}",
+                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
+                                                                one_time_keyboard=True)
+                               )
+        context.user_data['status'] = 'set'
+    else:
+        reply_keyboard = [["set address", "settings"]]
+        await bot.send_message(chat_id=chat_id, text=f"Your TUSD(BEP-20) address not set",
+                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
+                                                                one_time_keyboard=True)
+                               )
+        context.user_data['status'] = 'not set'
+    return ADDRESS_OPTIONS
+
+
+async def address_option(update, context):
+    message = update.message
+    chat_id = message.chat_id
+    text = message.text.lower()
+    if context.user_data['status'] == 'set':
+        option_1 = "change address"
+    else:
+        option_1 = "set address"
+
+    if option_1 == text:
+        reply_keyboard = [["cancel"]]
+        await bot.send_message(chat_id=chat_id, text=f"Now send the TUSD(BEP-20) Binance account or any wallet "
+                                                     f"address to set\n\n",
+                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
+                                                                one_time_keyboard=True)
+                               )
+        return SET_ADDRESS
+    elif "settings" == text:
+        await settings(update, context)
+        return ConversationHandler.END
+    else:
+        await bot.send_message(chat_id=chat_id, text="Please select valid option")
+        return ADDRESS_OPTIONS
+
+
+async def set_address(update, context):
+    message = update.message
+    chat_id = message.chat_id
+    username = message.from_user.username
+    text = message.text.lower()
+    if "cancel" == text:
+        await settings(update, context)
+        return ConversationHandler.END
+    try:
+        url = f"https://api.bscscan.com/api?module=account&action=balance&address={text}&apikey={bscscan_api_key}"
+
+        response = requests.get(url)
+        data = response.json()
+
+        if data["status"] == "1" and data["message"] == "OK":
+            # Check if the address has any BEP-20 tokens
+            peoples_col.update_one({"chat_id": chat_id}, {"$set": {"address": text}}, upsert=True)
+            return await address_start(update, context)
+        else:
+            await bot.send_message(chat_id=update.effective_chat.id, text="Address not found, Please send proper TUSD("
+                                                                          "BEP-20) address")
+    except Exception as e:
+        await bot.send_message(chat_id=update.effective_chat.id,
+                               text="An error occurred while checking the TUSD address.\n"
+                                    "Report to developer")
+        return SET_ADDRESS
+
+
 DISCORD_OPTIONS, SET_DISCORD = range(2)
 
 
