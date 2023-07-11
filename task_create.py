@@ -210,7 +210,7 @@ async def confirm(update, context):
             'title': context.user_data['title'],
             'task_id': get_id + 1,
             'user_target': context.user_data['user_target'],
-            'total_target': context.user_data['total_target'],
+            'daily_target': context.user_data['daily_target'],
             'created_by': username,
             'group_title': context.user_data['group_title'],
             'group_type': context.user_data['group_type'],
