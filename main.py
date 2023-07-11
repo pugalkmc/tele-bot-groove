@@ -145,13 +145,13 @@ async def group_message_handler(update, context):
     if not task or task['status'] == 'paused':
         return
     elif task['task_type'] == 'filter':
-        # if task['target_reached']:
-        #     return
-        if "twitter.com" not in text or len(text) < 15:
+        if task['daily_target'] == task['collection']:
             return
-        # else:
-        #     if "?" in text:
-        #         text = text.split("?")[0]
+        if not text or "twitter.com" not in text or len(text) < 15:
+            return
+        else:
+            if "?" in text:
+                text = text.split("?")[0]
     else:
         if not await verify_membership(update, context):
             return
@@ -168,15 +168,12 @@ async def group_message_handler(update, context):
         {"$push": {f'collection.{collection_name}': new_message}}
     )
 
-    if task['task-type'] == 'normal':
-        pipeline = [
-            {"$unwind": f"${collection_name}"},
-            {"$match": {f"{collection_name}.username": username}},
-            {"$group": {"_id": None, "count": {"$sum": 1}}}
-        ]
-        # Execute the aggregation pipeline
-        results = tasks_col.aggregate(pipeline)
-        if next(results)["count"] == 15:
+    if task['task_type'] == 'normal':
+        get = tasks_col.find_one({'task_id': task['task_id']})['collection'][collection_name]
+        count = 0
+        for user in get:
+            count += 1 if user['username'] == username else 0
+        if count == task['user_target']:
             await bot.send_message(chat_id=message.from_user.id,
                                    text=f"Today target reached for {task['group_title']}\n"
                                         f"Still you can do more, if you like")
@@ -223,7 +220,8 @@ def main():
     )
 
     twitter_settings = ConversationHandler(
-        entry_points=[MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^twitter$', re.IGNORECASE)), twitter_ids)],
+        entry_points=[
+            MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^twitter$', re.IGNORECASE)), twitter_ids)],
         states={
             TWITTER_UPDATE: [MessageHandler(filters.TEXT, twitter_update)],
             TWITTER_UPDATE_LIST: [MessageHandler(filters.TEXT, twitter_update_list)],
@@ -267,7 +265,8 @@ def main():
     )
 
     edit_task_con = ConversationHandler(
-        entry_points=[MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^admin mode$', re.IGNORECASE)), task_id)],
+        entry_points=[
+            MessageHandler(filters.TEXT & filters.Regex(re.compile(r'^admin mode$', re.IGNORECASE)), task_id)],
         states={
             ADMIN_MODE: [MessageHandler(filters.TEXT, admin_mode)],
             MEMBER_START: [MessageHandler(filters.TEXT, member_start)],
