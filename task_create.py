@@ -178,8 +178,8 @@ async def user_target(update, context):
                                                                                      "task_type"] == "normal" else f"Daily user link target set to {text}"
 
         flexible = "Now set the daily total link target" if context.user_data[
-                                                                 "task_type"] == "filter" else "Now send the daily " \
-                                                                                               "message target"
+                                                                "task_type"] == "filter" else "Now send the daily " \
+                                                                                              "message target"
         await bot.send_message(chat_id=chat_id, text=f"{flexible_text}\n\n"
                                                      f"{flexible}",
                                reply_to_message_id=update.message.message_id)
@@ -260,7 +260,9 @@ async def confirm(update, context):
             'group_title': context.user_data['group_title'],
             'group_type': context.user_data['group_type'],
             'task_type': context.user_data['task_type'],
-            'admins_list': admin_list,
+            'admins_list': context.user_data['admins_list'],
+            'work_group': context.user_data['group_id'] if context.user_data['task_type'] == 'filter' else
+            context.user_data['work_group_id'],
             'filter_text': context.user_data['filter_text'] if 'filter_text' in context.user_data else None,
             'status': 'active'
         })
