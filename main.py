@@ -49,6 +49,7 @@ async def cancel(update, context):
                            reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True,
                                                             one_time_keyboard=True),
                            reply_to_message_id=update.message.message_id)
+    return ConversationHandler.END
 
 
 async def private_message_handler(update, context):
@@ -72,7 +73,7 @@ async def private_message_handler(update, context):
 
     elif "my task" == text:
         text = ""
-        each_task = tasks_col.find({"workers": username})
+        each_task = tasks_col.find({"admins_list": username})
         for each in each_task:
             text += f"Title : {each['title']}\nCommand: <code>sheet {each['task_id']}</code>\n\n"
         if len(text) <= 1:
@@ -93,29 +94,32 @@ async def private_message_handler(update, context):
     elif "payment data" == text:
         query_data = {
             '$or': [
-                {'$and': [{'binance_id': {'$exists': True}}, {'UPI': {'$exists': True}}]},
-                {'binance_id': {'$exists': True}, 'UPI': {'$exists': False}},
-                {'binance_id': {'$exists': False}, 'UPI': {'$exists': True}},
-                {'binance_id': {'$exists': False}, 'UPI': {'$exists': False}}
+                {'$and': [{'binance': {'$exists': True}}, {'upi': {'$exists': True}}]},
+                {'binance': {'$exists': True}, 'upi': {'$exists': False}},
+                {'binance': {'$exists': False}, 'upi': {'$exists': True}},
+                {'binance': {'$exists': False}, 'upi': {'$exists': False}}
             ]
         }
         get = peoples_col.find(query_data)
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.column_dimensions['A'].width = 20
-        ws.column_dimensions['B'].width = 25
-        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 20
         ws['A1'] = 'Username'
-        ws['B1'] = 'Binance'
-        ws['C1'] = 'UPI'
+        ws['B1'] = 'TUSD Address'
+        ws['C1'] = 'Binance'
+        ws['D1'] = 'UPI'
         row = 2
         for data in get:
             if 'username' not in data:
                 continue
             username = data['username']
             ws.cell(row=row, column=1).value = username
-            ws.cell(row=row, column=2).value = data['binance'] if 'binance' in data else "Not set"
-            ws.cell(row=row, column=3).value = data['upi'] if 'upi' in data else "Not set"
+            ws.cell(row=row, column=2).value = data['address'] if 'address' in data else "Not set"
+            ws.cell(row=row, column=3).value = data['binance'] if 'binance' in data else "Not set"
+            ws.cell(row=row, column=4).value = data['upi'] if 'upi' in data else "Not set"
             row += 1
         wb.save(f"peoples_data.xlsx")
         await bot.send_document(chat_id=chat_id, document=open(f"peoples_data.xlsx", "rb"))
@@ -153,7 +157,7 @@ async def group_message_handler(update, context):
             if "?" in text:
                 text = text.split("?")[0]
     else:
-        if not await verify_membership(update, context):
+        if not await verify_membership(update, task):
             return
     new_message = {
         'username': username,
@@ -174,9 +178,11 @@ async def group_message_handler(update, context):
         for user in get:
             count += 1 if user['username'] == username else 0
         if count == task['user_target']:
+            flex_text = task['group_title'] if task['task_type'] == 'filter' else task['work_group_title']
+            flex_text2 = "Stop your tweeting for today" if task['task_type'] == 'filter' else "Still you can do more, if you like"
             await bot.send_message(chat_id=message.from_user.id,
-                                   text=f"Today target reached for {task['group_title']}\n"
-                                        f"Still you can do more, if you like")
+                                   text=f"Today target reached : {flex_text}\n"
+                                        f"{flex_text2}")
 
 
 async def task_status_switch(chat_id, task_id, option):
@@ -192,10 +198,10 @@ async def task_status_switch(chat_id, task_id, option):
         await bot.send_message(chat_id=chat_id, text="Task id must be a number")
 
 
-async def verify_membership(update, context):
+async def verify_membership(update, task):
     user_id = update.message.from_user.id
     try:
-        member = await bot.get_chat_member(-1001640271166, user_id)
+        member = await bot.get_chat_member(task['group_id'], user_id)
         if member.status in ['member', 'creator', 'administrator']:
             return True
         else:
@@ -211,10 +217,11 @@ def main():
         states={
             TITLE: [MessageHandler(filters.TEXT, title)],
             TASK_TYPE: [MessageHandler(filters.TEXT, task_type)],
-            CHAT_ID: [MessageHandler(filters.TEXT, chat_id)],
+            GROUP_ID: [MessageHandler(filters.TEXT, group_id)],
+            FLEXIBLE_INPUT: [MessageHandler(filters.TEXT, flex_input)],
             USER_TARGET: [MessageHandler(filters.TEXT, user_target)],
             DAILY_TARGET: [MessageHandler(filters.TEXT, daily_target)],
-            MEMBERS_LIST: [MessageHandler(filters.TEXT, members_list)],
+            ADMINS_LIST: [MessageHandler(filters.TEXT, admins_list)],
             CONFIRM: [MessageHandler(filters.TEXT, confirm)]
         }, fallbacks=[]
     )
