@@ -82,8 +82,7 @@ async def private_message_handler(update, context):
         if count == 0:
             await bot.send_message(chat_id=chat_id, text="You are not assigned for any task right now!")
         else:
-            await bot.send_message(chat_id=chat_id, text=f"Total found: {count}\n"
-                                                         f"Task List:\n\n"
+            await bot.send_message(chat_id=chat_id, text=f"Total found: {count}\n\n"
                                                          f"{text}"
                                                          f"Just click to copy the command and send it here",
                                    parse_mode="html")
@@ -152,17 +151,16 @@ async def group_message_handler(update, context):
     task = tasks_col.find_one({"group_id": group_id})
     if not task or task['status'] == 'paused':
         return
-    elif task['task_type'] == 'filter':
-        if task['daily_target'] == task['collection']:
+    if task['task_type'] == 'filter':
+        if 'collection' in task and int(task['daily_target']) >= len(task['collection'][collection_name]):
             return
-        if not text or "twitter.com" not in text or len(text) < 15:
+        elif not text or task['filter_text'] not in text:
             return
-        else:
-            if "?" in text:
-                text = text.split("?")[0]
     else:
-        if not await verify_membership(update, task):
+        if 'collection' in task and int(task['daily_target']) >= len(task['collection'][collection_name]):
             return
+    if not await verify_membership(update, task):
+        return
     new_message = {
         'username': username,
         'text': text,
@@ -176,18 +174,26 @@ async def group_message_handler(update, context):
         {"$push": {f'collection.{collection_name}': new_message}}
     )
 
-    if task['task_type'] == 'normal':
-        get = tasks_col.find_one({'task_id': task['task_id']})['collection'][collection_name]
-        count = 0
-        for user in get:
-            count += 1 if user['username'] == username else 0
-        if count == task['user_target']:
-            flex_text = task['group_title'] if task['task_type'] == 'filter' else task['work_group_title']
-            flex_text2 = "Stop your tweeting for today" if task[
-                                                               'task_type'] == 'filter' else "Still you can do more, if you like"
-            await bot.send_message(chat_id=message.from_user.id,
+    get = tasks_col.find_one({'task_id': task['task_id']})['collection'][collection_name]
+    count = 0
+    for user in get:
+        count += 1 if user['username'] == username else 0
+    if count == task['user_target']:
+        flex_text = task['group_title'] if task['task_type'] == 'filter' else task['work_group_title']
+        flex_text2 = "Stop your work for today" if task[
+                                                       'task_type'] == 'filter' else "Still you can do more, if you like"
+        await bot.send_message(chat_id=message.from_user.id,
+                               text=f"Today target reached : {flex_text}\n"
+                                    f"{flex_text2}")
+        if task['task_type'] == 'filter':
+            await bot.send_message(chat_id=task['group_id'],
                                    text=f"Today target reached : {flex_text}\n"
                                         f"{flex_text2}")
+    if len(get) == task['daily_target']:
+        if task['task_type'] == 'filter':
+            await bot.send_message(chat_id=task['group_id'],
+                                   text=f"Today target reached!\n\n"
+                                        f"Stop your work , No more new records will be accepted")
 
 
 async def task_status_switch(chat_id, task_id, option):
