@@ -148,16 +148,16 @@ async def group_message_handler(update, context):
 
     collection_name = time_fun.now().strftime("%d-%m-%Y")
     message_date_ist = time_fun.now().strftime("%H:%M:%S")
-    task = tasks_col.find_one({"group_id": group_id})
+    task = tasks_col.find_one({"task_group": group_id})
     if not task or task['status'] == 'paused':
         return
     if task['task_type'] == 'filter':
-        if 'collection' in task and int(task['daily_target']) >= len(task['collection'][collection_name]):
+        if 'collection' in task and int(task['daily_target']) <= len(task['collection'][collection_name]):
             return
         elif not text or task['filter_text'] not in text:
             return
     else:
-        if 'collection' in task and int(task['daily_target']) >= len(task['collection'][collection_name]):
+        if 'collection' in task and int(task['daily_target']) <= len(task['collection'][collection_name]):
             return
     if not await verify_membership(update, task):
         return
