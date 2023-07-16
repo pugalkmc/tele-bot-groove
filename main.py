@@ -72,14 +72,18 @@ async def private_message_handler(update, context):
         await functions.binance_pay(details_pay[1], details_pay[2], details_pay[3], chat_id)
 
     elif "my task" == text:
+        count = 0
         text = ""
-        each_task = tasks_col.find({"admins_list": username})
+        each_task = tasks_col.find({})
         for each in each_task:
-            text += f"Title : {each['title']}\nCommand: <code>sheet {each['task_id']}</code>\n\n"
-        if len(text) <= 1:
+            if await verify_membership(update, each):
+                count += 1
+                text += f"Title : {each['title']}\nCommand: <code>sheet {each['task_id']}</code>\n\n"
+        if count == 0:
             await bot.send_message(chat_id=chat_id, text="You are not assigned for any task right now!")
         else:
-            await bot.send_message(chat_id=chat_id, text=f"Task List:\n\n"
+            await bot.send_message(chat_id=chat_id, text=f"Total found: {count}\n"
+                                                         f"Task List:\n\n"
                                                          f"{text}"
                                                          f"Just click to copy the command and send it here",
                                    parse_mode="html")
@@ -179,7 +183,8 @@ async def group_message_handler(update, context):
             count += 1 if user['username'] == username else 0
         if count == task['user_target']:
             flex_text = task['group_title'] if task['task_type'] == 'filter' else task['work_group_title']
-            flex_text2 = "Stop your tweeting for today" if task['task_type'] == 'filter' else "Still you can do more, if you like"
+            flex_text2 = "Stop your tweeting for today" if task[
+                                                               'task_type'] == 'filter' else "Still you can do more, if you like"
             await bot.send_message(chat_id=message.from_user.id,
                                    text=f"Today target reached : {flex_text}\n"
                                         f"{flex_text2}")
