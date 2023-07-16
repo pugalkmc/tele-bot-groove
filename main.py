@@ -148,7 +148,7 @@ async def group_message_handler(update, context):
 
     collection_name = time_fun.now().strftime("%d-%m-%Y")
     message_date_ist = time_fun.now().strftime("%H:%M:%S")
-    task = tasks_col.find_one({"task_group": group_id})
+    task = tasks_col.find_one({"work_group": group_id})
     if not task or task['status'] == 'paused':
         return
     if task['task_type'] == 'filter':
