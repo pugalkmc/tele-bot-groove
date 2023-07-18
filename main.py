@@ -152,7 +152,7 @@ async def group_message_handler(update, context):
     if not task or task['status'] == 'paused':
         return
     if task['task_type'] == 'filter':
-        if 'collection' in task and int(task['daily_target']) <= len(task['collection'][collection_name]):
+        if 'collection' in task and collection_name in task['collection'] and int(task['daily_target']) <= len(task['collection'][collection_name]):
             return
         elif not text or task['filter_text'] not in text:
             return
