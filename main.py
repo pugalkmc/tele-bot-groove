@@ -156,9 +156,6 @@ async def group_message_handler(update, context):
             return
         elif not text or task['filter_text'] not in text:
             return
-    else:
-        if 'collection' in task and int(task['daily_target']) <= len(task['collection'][collection_name]):
-            return
     if not await verify_membership(update, task):
         return
     new_message = {
