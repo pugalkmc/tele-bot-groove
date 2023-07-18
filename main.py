@@ -181,16 +181,20 @@ async def group_message_handler(update, context):
                                                        'task_type'] == 'filter' else "Still you can do more, if you like"
         await bot.send_message(chat_id=message.from_user.id,
                                text=f"Today target reached : {flex_text}\n"
-                                    f"{flex_text2}")
+                                    f"{flex_text2}"
+                                    f"Copy the command -> <code>sheet {task['task_id']}</code> and send again to see your work records",
+                                  parse_mode="html")
         if task['task_type'] == 'filter':
             await bot.send_message(chat_id=task['group_id'],
                                    text=f"Today target reached : {flex_text}\n"
-                                        f"{flex_text2}")
+                                        f"{flex_text2}\n")
     if len(get) == task['daily_target']:
         if task['task_type'] == 'filter':
             await bot.send_message(chat_id=task['group_id'],
                                    text=f"Today target reached!\n\n"
-                                        f"Stop your work , No more new records will be accepted")
+                                        f"Stop your work , No more new records will be accepted"
+                                        f"Copy the command -> <code>sheet {task['task_id']}</code> and send again to see your work records",
+                                  parse_mode="html")
 
 
 async def task_status_switch(chat_id, task_id, option):
